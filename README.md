@@ -67,35 +67,35 @@ bash restore.sh YOUR_BUCKET_NAME
 ## Architecture
 
 ```
-┌─ GCE VM (e2-medium, IAP only) ───────────────────┐
-│                                                    │
-│  Docker                                            │
-│   ├─ openclaw-gateway (Claude Sonnet 4)            │
-│   │   ├─ Memory: Mem0 OSS (Qdrant vectors)        │
-│   │   ├─ Audio: Voxtral Mini (Mistral)             │
-│   │   ├─ Browser: Chrome CDP (headless)            │
-│   │   └─ Channel: WhatsApp                         │
-│   ├─ qdrant (vector store sidecar)                 │
-│   └─ chrome (headless browser sidecar)             │
-│                                                    │
-│  /run/openclaw-secrets/  (tmpfs — RAM only)        │
-│   └─ secrets.env          (fetched from SM)        │
-│                                                    │
-│  ~/.openclaw/                                      │
-│   ├─ openclaw.json, credentials/, memory/          │
-│   ├─ browser/chrome-data/                          │
-│   └─ workspace/ (SOUL.md, IDENTITY.md, etc.)       │
-│                                                    │
-│  Cron: backup → GCS every 6h + on reboot           │
-└────────────────────────────────────────────────────┘
-         │                         ▲
-         ▼                         │ Secrets at boot
-┌─ GCS Bucket ────────┐   ┌─ Secret Manager ────────┐
-│ /backups/            │   │ openclaw-anthropic-key   │
-│ /tofu/state/         │   │ openclaw-openai-key      │
-└──────────────────────┘   │ openclaw-mistral-key     │
-                           │ openclaw-gateway-token   │
-                           └─────────────────────────┘
++-- GCE VM (e2-medium, IAP only) -------------------+
+|                                                    |
+|  Docker                                            |
+|   +- openclaw-gateway (Claude Sonnet 4)            |
+|   |   +- Memory: Mem0 OSS (Qdrant vectors)        |
+|   |   +- Audio: Voxtral Mini (Mistral)             |
+|   |   +- Browser: Chrome CDP (headless)            |
+|   |   +- Channel: WhatsApp                         |
+|   +- qdrant (vector store sidecar)                 |
+|   +- chrome (headless browser sidecar)             |
+|                                                    |
+|  /run/openclaw-secrets/  (tmpfs, RAM only)         |
+|   +- secrets.env          (fetched from SM)        |
+|                                                    |
+|  ~/.openclaw/                                      |
+|   +- openclaw.json, credentials/, memory/          |
+|   +- browser/chrome-data/                          |
+|   +- workspace/ (SOUL.md, IDENTITY.md, etc.)       |
+|                                                    |
+|  Cron: backup -> GCS every 6h + on reboot          |
++----------------------------------------------------+
+         |                         ^
+         v                         | Secrets at boot
++- GCS Bucket ----------+   +- Secret Manager ------+
+| /backups/              |   | openclaw-anthropic-key |
+| /tofu/state/           |   | openclaw-openai-key    |
++------------------------+   | openclaw-mistral-key   |
+                              | openclaw-gateway-token |
+                              +------------------------+
 ```
 
 ## Security
