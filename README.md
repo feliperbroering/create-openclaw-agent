@@ -67,16 +67,18 @@ bash restore.sh YOUR_BUCKET_NAME
 ## Architecture
 
 ```
-+-- GCE VM (e2-medium, IAP only) -------------------+
++-- GCE VM (e2-medium, IAP only, egress 80/443/53) -+
 |                                                    |
-|  Docker                                            |
+|  Docker (bridge network: openclaw-net)             |
 |   +- openclaw-gateway (Claude Sonnet 4)            |
+|   |   ports: 127.0.0.1 only                       |
+|   |   read_only, cap_drop:ALL, no-new-privileges   |
 |   |   +- Memory: Mem0 OSS (Qdrant vectors)        |
 |   |   +- Audio: Voxtral Mini (Mistral)             |
 |   |   +- Browser: Chrome CDP (headless)            |
 |   |   +- Channel: WhatsApp                         |
-|   +- qdrant (vector store sidecar)                 |
-|   +- chrome (headless browser sidecar)             |
+|   +- qdrant (vector store, read_only, cap_drop)    |
+|   +- chrome (headless browser, read_only, cap_drop)|
 |                                                    |
 |  /run/openclaw-secrets/  (tmpfs, RAM only)         |
 |   +- secrets.env          (fetched from SM)        |
@@ -86,7 +88,7 @@ bash restore.sh YOUR_BUCKET_NAME
 |   +- browser/chrome-data/                          |
 |   +- workspace/ (SOUL.md, IDENTITY.md, etc.)       |
 |                                                    |
-|  Cron: backup -> GCS every 6h + on reboot          |
+|  Cron: backup (age-encrypted) -> GCS every 6h      |
 +----------------------------------------------------+
          |                         ^
          v                         | Secrets at boot
@@ -100,12 +102,25 @@ bash restore.sh YOUR_BUCKET_NAME
 
 ## Security
 
+Defense-in-depth hardening across every layer. See [`docs/security.md`](docs/security.md) for the full architecture and threat model.
+
 - VM has **no external IP** — access only via [IAP tunnel](https://cloud.google.com/iap/docs/using-tcp-forwarding)
+- **Egress firewall** — outbound restricted to ports 80, 443, and 53 only (all other egress denied)
 - All API keys in **Secret Manager** — fetched into tmpfs (RAM) at boot, never persisted to disk
-- Service account follows **least privilege** (logging, monitoring, storage, secretAccessor)
-- Docker runs with `no-new-privileges` security option
-- Shielded VM with Secure Boot enabled
-- Backups exclude secrets (`.env` is a symlink to tmpfs)
+- **Container hardening** — bridge network (not host), read-only filesystems, all capabilities dropped (`cap_drop: ALL`), `no-new-privileges`, resource limits, images pinned by SHA256 digest
+- Service account follows **least privilege** (logging, monitoring, storage, secretAccessor — no delete)
+- Shielded VM with Secure Boot, OS Login (IAM-based SSH)
+- **Backups encrypted** with [age](https://age-encryption.org/) before upload to GCS; key in Secret Manager
+- **Pre-commit hooks** — gitleaks, shellcheck, terraform-fmt, terraform-validate
+- **CI scanning** — gitleaks (secrets), Trivy (container vulnerabilities), all GitHub Actions SHA-pinned
+
+### Pre-commit hooks
+
+Install to catch secrets and lint errors before they reach the repo:
+
+```bash
+pip install pre-commit && pre-commit install
+```
 
 ## Cost Estimate
 
@@ -126,7 +141,7 @@ With 1-year VM commitment: ~$26/mo. GCP offers $300 free trial (~12 months free)
 
 ## Backup & Restore
 
-Backups happen automatically every 6 hours and on every VM reboot. Last 30 backups retained.
+Backups happen automatically every 6 hours and on every VM reboot. Last 30 backups retained. Backups are **encrypted with [age](https://age-encryption.org/)** before upload — the encryption key is stored in Secret Manager, never on disk.
 
 ### What's backed up
 
@@ -144,7 +159,7 @@ Backups happen automatically every 6 hours and on every VM reboot. Last 30 backu
 | `agent-config.yml` | Portable configuration |
 | Docker config | docker-compose.yml + override |
 
-> **Note:** API keys are NOT in backups — they're in Secret Manager. WhatsApp session may need re-pairing after restore.
+> **Note:** API keys are NOT in backups — they're in Secret Manager. Backups are encrypted at rest with `age`. Restore handles both encrypted and unencrypted (legacy) backups. WhatsApp session may need re-pairing after restore.
 
 ## File Structure
 
@@ -168,9 +183,15 @@ Backups happen automatically every 6 hours and on every VM reboot. Last 30 backu
 │   ├── docker-compose.override.example.yml
 │   ├── env.example
 │   └── agent-config.example.yml
-└── docs/
-    ├── gcp-guide.md               # GCP setup, Secret Manager, IAM
-    └── mem0-setup.md              # Mem0 plugin configuration
+├── scripts/
+│   ├── run-e2e.sh                 # E2E test runner
+│   └── verify-e2e-cleanup.sh     # Post-E2E resource cleanup verification
+├── docs/
+│   ├── gcp-guide.md               # GCP setup, Secret Manager, IAM
+│   ├── mem0-setup.md              # Mem0 plugin configuration
+│   └── security.md                # Full security architecture
+├── .gitleaks.toml                 # Gitleaks secret scanning config
+└── .pre-commit-config.yaml        # Pre-commit hooks
 ```
 
 ## Contributing

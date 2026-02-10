@@ -1,0 +1,15 @@
+# Gitleaks configuration for create-openclaw-agent
+# Extends the default ruleset with project-specific allowlists
+
+title = "create-openclaw-agent gitleaks config"
+
+[allowlist]
+  description = "Global allowlist"
+  paths = [
+    '''docs/.*\.md$''',
+    '''.github/.*\.md$''',
+    '''AGENTS\.md$''',
+    '''CLAUDE\.md$''',
+    '''README\.md$''',
+    '''.gitleaks\.toml$''',
+  ]

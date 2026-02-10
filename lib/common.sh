@@ -71,6 +71,7 @@ choose() {
   local prompt="$1"
   shift
   local options=("$@")
+  local num_options=${#options[@]}
   local i=1
 
   echo -e "\n${CYAN}  ? ${prompt}${NC}"
@@ -85,6 +86,10 @@ choose() {
   echo -en "${CYAN}    Choice [1]: ${NC}"
   read -r choice
   choice="${choice:-1}"
+  # Validate: must be a number within range; default to 1 on invalid input
+  if ! [[ "$choice" =~ ^[0-9]+$ ]] || [ "$choice" -lt 1 ] || [ "$choice" -gt "$num_options" ]; then
+    choice=1
+  fi
   echo "${options[$((choice - 1))]}"
 }
 
@@ -248,9 +253,9 @@ get_script_dir() {
   local source="${BASH_SOURCE[0]}"
   while [ -L "$source" ]; do
     local dir
-    dir=$(cd -P "$(dirname "$source")" && pwd)
+    dir=$(cd -P "$(dirname "$source")" && pwd) || return 1
     source=$(readlink "$source")
     [[ $source != /* ]] && source="$dir/$source"
   done
-  cd -P "$(dirname "$source")" && pwd
+  cd -P "$(dirname "$source")" && pwd || return 1
 }

@@ -6,12 +6,15 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
 jobs:
   shellcheck:
     name: Shell Script Lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
       - name: Install shellcheck
         run: sudo apt-get install -y shellcheck
       - name: Lint shell scripts
@@ -27,9 +30,9 @@ jobs:
     name: Terraform Validate
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
       - name: Setup OpenTofu
-        uses: opentofu/setup-opentofu@v1
+        uses: opentofu/setup-opentofu@9d84900f3238fab8cd84ce47d658d25dd008be2f # v1.0.8
       - name: Validate GCP provider
         working-directory: providers/gcp/infra
         run: |
@@ -41,7 +44,7 @@ jobs:
     name: YAML Lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
       - name: Install yamllint
         run: pip install yamllint
       - name: Lint YAML templates
@@ -53,14 +56,31 @@ jobs:
     name: Secret Detection
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - name: Check for secrets in code
-        run: |
-          # Check for common secret patterns (exclude docs and .github — they document the patterns)
-          if grep -rE 'sk-ant-|sk-proj-|AKIA[A-Z0-9]{16}' \
-            --include='*.sh' --include='*.tf' --include='*.yml' --include='*.yaml' --include='*.md' \
-            --exclude-dir=docs --exclude-dir=.github --exclude-dir=.git .; then
-            echo "ERROR: Possible secrets found in code!"
-            exit 1
-          fi
-          echo "No secrets detected"
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          fetch-depth: 0
+      - name: Run gitleaks
+        uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2.3.9
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_CONFIG: .gitleaks.toml
+
+  image-scan:
+    name: Container Image Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - name: Scan Qdrant image
+        uses: aquasecurity/trivy-action@b6643a29fecd7f34b3597bc6acb0a98b03d33ff8 # v0.33.1
+        with:
+          image-ref: 'qdrant/qdrant:v1.13.2'
+          format: 'table'
+          severity: 'CRITICAL,HIGH'
+          exit-code: '1'
+      - name: Scan Chrome image
+        uses: aquasecurity/trivy-action@b6643a29fecd7f34b3597bc6acb0a98b03d33ff8 # v0.33.1
+        with:
+          image-ref: 'chromedp/headless-shell:stable'
+          format: 'table'
+          severity: 'CRITICAL'
+          exit-code: '1'

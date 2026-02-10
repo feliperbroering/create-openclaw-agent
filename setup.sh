@@ -241,7 +241,6 @@ if [ "$ACTION" = "new" ]; then
 
   PRIMARY_MODEL=$(ask "Primary LLM model" "anthropic/claude-sonnet-4-20250514")
 
-  MEM0_ENABLED="true"
   if confirm "Enable Mem0 persistent memory?" "Y"; then
     MEM0_ENABLED="true"
     MEM0_USER_ID=$(ask "Mem0 user ID (your name)" "default")
@@ -251,17 +250,14 @@ if [ "$ACTION" = "new" ]; then
     MEM0_ENABLED="false"
   fi
 
-  AUDIO_ENABLED="true"
   confirm "Enable audio transcription (Voxtral)?" "Y" && AUDIO_ENABLED="true" || AUDIO_ENABLED="false"
   AUDIO_LANGUAGE="en"
   if [ "$AUDIO_ENABLED" = "true" ]; then
     AUDIO_LANGUAGE=$(ask "Audio language" "en")
   fi
 
-  BROWSER_ENABLED="true"
   confirm "Enable browser (Chrome headless)?" "Y" && BROWSER_ENABLED="true" || BROWSER_ENABLED="false"
 
-  WHATSAPP_ENABLED="true"
   confirm "Enable WhatsApp channel?" "Y" && WHATSAPP_ENABLED="true" || WHATSAPP_ENABLED="false"
 
   BACKUP_HOURS=$(ask "Backup interval (hours)" "6")
@@ -339,6 +335,7 @@ ok "Startup script executed"
 # Step 12: Wait for containers + install plugins
 # ---------------------------------------------------------------------------
 step "Waiting for containers to be healthy..."
+# Wait for Docker Compose to pull images and start all 3 containers (gateway, qdrant, chrome)
 sleep 30
 
 # Check container status
@@ -354,6 +351,7 @@ fi
 # Step 13: Smoke test
 # ---------------------------------------------------------------------------
 step "Running smoke tests..."
+# Brief pause to let containers stabilize after compose reports them as running
 sleep 5
 
 # Gateway health
