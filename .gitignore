@@ -1,0 +1,148 @@
+# ==============================================================================
+# OpenClaw Self-Hosting Template — .gitignore
+#
+# SECURITY FIRST: This file is designed to prevent ANY secrets, credentials,
+# API keys, tokens, or personal data from being accidentally committed.
+# When in doubt, add it here.
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# Terraform / OpenTofu State & Secrets
+# These files contain sensitive infrastructure state and variable values.
+# ------------------------------------------------------------------------------
+*.tfstate
+*.tfstate.*
+*.tfstate.backup
+.terraform/
+.terraform.lock.hcl
+terraform.tfvars
+*.auto.tfvars
+backend.tfvars
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+
+# ------------------------------------------------------------------------------
+# Environment Files & Secrets
+# NEVER commit files containing API keys, tokens, or credentials.
+# ------------------------------------------------------------------------------
+.env
+.env.*
+!.env.example
+*.env
+!*.env.example
+.envrc
+.secret
+.secrets
+*.secret
+*.secrets
+
+# API keys / credentials (catch-all patterns)
+*credentials*
+!*credentials*.example
+**/service-account*.json
+**/sa-key*.json
+**/*-key.json
+**/*_key.json
+**/keyfile*.json
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+
+# ------------------------------------------------------------------------------
+# OpenClaw Configuration (contains tokens, session data, API keys)
+# ------------------------------------------------------------------------------
+openclaw.json
+openclaw.json.bak*
+.openclaw/
+docker-compose.override.yml
+!docker-compose.override.example.yml
+
+# WhatsApp session data
+**/credentials/whatsapp/
+**/pre-key-*.json
+**/session-*.json
+**/creds.json
+**/paired.json
+**/device-auth.json
+**/device.json
+**/auth-profiles.json
+
+# Memory databases (may contain personal conversation data)
+*.sqlite
+*.db
+**/memory/mem0-*.db
+
+# ------------------------------------------------------------------------------
+# Docker
+# ------------------------------------------------------------------------------
+docker-compose.override.yml
+!docker-compose.override.example.yml
+
+# ------------------------------------------------------------------------------
+# OS & Editor
+# ------------------------------------------------------------------------------
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+*~
+*.swp
+*.swo
+*.swn
+.vscode/settings.json
+.idea/
+*.iml
+
+# ------------------------------------------------------------------------------
+# Logs
+# ------------------------------------------------------------------------------
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ------------------------------------------------------------------------------
+# Node (if any local scripts use it)
+# ------------------------------------------------------------------------------
+node_modules/
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# ------------------------------------------------------------------------------
+# Python (if any local scripts use it)
+# ------------------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# ------------------------------------------------------------------------------
+# Backup archives (contain everything sensitive)
+# ------------------------------------------------------------------------------
+*.tar.gz
+*.tar.bz2
+*.zip
+**/backups/
+
+# ------------------------------------------------------------------------------
+# Cursor / AI IDE
+# ------------------------------------------------------------------------------
+.cursor/
+.codex/
+.claude/

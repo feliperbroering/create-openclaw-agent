@@ -1,0 +1,26 @@
+# Copy this file to docker-compose.override.yml on your VM at ~/openclaw/
+# Customize for your deployment. NEVER commit the real override file.
+services:
+  openclaw-gateway:
+    network_mode: host
+    environment:
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      MISTRAL_API_KEY: ${MISTRAL_API_KEY}
+      TZ: America/Sao_Paulo  # Change to your timezone
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          cpus: "1.5"
+          memory: 1536M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    restart: unless-stopped

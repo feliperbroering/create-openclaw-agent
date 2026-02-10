@@ -1,0 +1,6 @@
+# Copy this file to backend.tfvars and fill in your bucket name.
+# Used with: tofu init -backend-config=backend.tfvars
+#
+# backend.tfvars is gitignored and will never be committed.
+
+bucket = "my-openclaw-backup-bucket"

@@ -1,0 +1,18 @@
+# Copy this file to terraform.tfvars and fill in your values.
+# terraform.tfvars is gitignored and will never be committed.
+
+# Required
+project_id         = "my-gcp-project-id"
+backup_bucket_name = "my-openclaw-backup-bucket"
+
+# Optional (uncomment to override defaults)
+# region                     = "us-central1"
+# zone                       = "us-central1-a"
+# machine_type               = "e2-small"
+# disk_size_gb               = 20
+# timezone                   = "America/Sao_Paulo"
+# vm_name                    = "openclaw-gw"
+# service_account_id         = "openclaw-sa"
+# network                    = "default"
+# backup_retention_days      = 90
+# backup_cron_interval_hours = 6
