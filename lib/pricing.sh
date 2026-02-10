@@ -213,12 +213,12 @@ show_cost_estimate() {
     printf "  ├─ Haiku 4.5 (Mem0 extraction)  ≈ \$%.0f\n" "$mem0_cost"
     printf "  ├─ OpenAI embeddings (Mem0)      ≈ \$%.2f\n" "$embed_cost"
   else
-    printf '  %b├─ Mem0 (disabled)               $0%b\n' "$DIM" "$NC"
+    printf "  %b├─ Mem0 (disabled)               \$0%b\n" "$DIM" "$NC"
   fi
   if [ "$audio_enabled" = "true" ]; then
     printf "  └─ Mistral Voxtral (audio)       ≈ \$%.0f\n" "$audio_cost"
   else
-    printf '  %b└─ Audio (disabled)              $0%b\n' "$DIM" "$NC"
+    printf "  %b└─ Audio (disabled)              \$0%b\n" "$DIM" "$NC"
   fi
   printf '  %bSubtotal LLM                   ≈ $%.0f/mo%b\n' "$DIM" "$llm_total" "$NC"
   echo ""
