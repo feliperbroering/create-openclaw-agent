@@ -13,6 +13,7 @@ REPO_API="https://api.github.com/repos/feliperbroering/create-openclaw-agent"
 INSTALL_DIR="${HOME}/.create-openclaw-agent"
 
 # Colors
+# shellcheck disable=SC2034 # CYAN reserved for future use
 if [ -t 1 ]; then
   GREEN='\033[0;32m'; CYAN='\033[0;36m'; BOLD='\033[1m'; DIM='\033[2m'; NC='\033[0m'
 else
