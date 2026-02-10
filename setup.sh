@@ -130,6 +130,7 @@ if [ "$ACTION" = "migrate" ] && [ -n "$CONFIG_FILE" ]; then
 
   # Save source provider info for secrets migration
   SOURCE_SECRETS_PROVIDER="$SECRETS_PROVIDER"
+  # shellcheck disable=SC2034 # Used during secrets migration
   SOURCE_SECRETS_PREFIX="${SECRETS_PREFIX:-openclaw}"
 
   # Allow overriding project/region for migration
@@ -174,6 +175,7 @@ elif [ "$ACTION" = "restore" ]; then
   fi
   echo "$AVAILABLE_BACKUPS"
   echo ""
+  # shellcheck disable=SC2034 # Passed to restore script
   RESTORE_BACKUP=$(ask "Backup to restore (filename or 'latest')" "openclaw-latest.tar.gz")
 fi
 
