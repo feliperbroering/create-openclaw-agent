@@ -67,7 +67,7 @@ gcloud storage cp "$BACKUP_URL" "$RESTORE_FILE" --quiet
 # ---------------------------------------------------------------------------
 echo "[2/5] Extracting..."
 tar -xzf "$RESTORE_FILE" -C /tmp
-RESTORE_DIR=$(ls -d /tmp/openclaw-backup-* 2>/dev/null | head -1)
+RESTORE_DIR=$(find /tmp -maxdepth 1 -name 'openclaw-backup-*' -type d -print -quit)
 
 if [ -z "$RESTORE_DIR" ]; then
   echo "ERROR: No backup directory found after extraction"
