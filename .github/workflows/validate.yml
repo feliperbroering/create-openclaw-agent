@@ -56,8 +56,10 @@ jobs:
       - uses: actions/checkout@v4
       - name: Check for secrets in code
         run: |
-          # Check for common secret patterns
-          if grep -rE 'sk-ant-|sk-proj-|AKIA[A-Z0-9]{16}' --include='*.sh' --include='*.tf' --include='*.yml' --include='*.yaml' --include='*.md' .; then
+          # Check for common secret patterns (exclude docs and .github — they document the patterns)
+          if grep -rE 'sk-ant-|sk-proj-|AKIA[A-Z0-9]{16}' \
+            --include='*.sh' --include='*.tf' --include='*.yml' --include='*.yaml' --include='*.md' \
+            --exclude-dir=docs --exclude-dir=.github --exclude-dir=.git .; then
             echo "ERROR: Possible secrets found in code!"
             exit 1
           fi

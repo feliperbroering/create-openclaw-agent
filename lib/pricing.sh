@@ -132,7 +132,7 @@ show_cost_estimate() {
     # Fallback to hardcoded estimates
     vm_cost=$(get_vm_price "$machine_type")
     disk_cost=$(echo "$disk_gb * $GCP_PD_STANDARD_PER_GB" | bc -l 2>/dev/null || echo "0.80")
-    gcs_cost="0.03"
+    gcs_cost=$(echo "1 * $GCP_GCS_PER_GB_MONTHLY" | bc -l 2>/dev/null || echo "0.03")
     secret_cost=$(echo "4 * $GCP_SECRET_PER_VERSION_MONTHLY" | bc -l 2>/dev/null || echo "0.24")
     net_cost="$GCP_NETWORK_ESTIMATE"
     infra_total=$(echo "$vm_cost + $disk_cost + $gcs_cost + $secret_cost + $net_cost" | bc -l 2>/dev/null || echo "26")
@@ -189,44 +189,44 @@ show_cost_estimate() {
   echo ""
 
   if [ -n "$infracost_total" ] && [ "$infracost_total" != "0" ]; then
-    printf "  ${BOLD}Cloud Infrastructure (GCP)${NC}\n"
+    printf '  %bCloud Infrastructure (GCP)%b\n' "$BOLD" "$NC"
     printf "  └─ Total (via Infracost)         \$%.2f\n" "$infra_total"
   else
     vm_cost=$(get_vm_price "$machine_type")
     disk_cost=$(echo "$disk_gb * $GCP_PD_STANDARD_PER_GB" | bc -l 2>/dev/null || echo "0.80")
-    gcs_cost="0.03"
+    gcs_cost=$(echo "1 * $GCP_GCS_PER_GB_MONTHLY" | bc -l 2>/dev/null || echo "0.03")
     secret_cost=$(echo "4 * $GCP_SECRET_PER_VERSION_MONTHLY" | bc -l 2>/dev/null || echo "0.24")
     net_cost="$GCP_NETWORK_ESTIMATE"
-    printf "  ${BOLD}Cloud Infrastructure (GCP)${NC}\n"
+    printf '  %bCloud Infrastructure (GCP)%b\n' "$BOLD" "$NC"
     printf "  ├─ VM %-20s  \$%.2f\n" "$machine_type" "$vm_cost"
     printf "  ├─ Boot disk %dGB pd-standard   \$%.2f\n" "$disk_gb" "$disk_cost"
     printf "  ├─ GCS storage (~1GB backups)   \$%.2f\n" "$gcs_cost"
     printf "  ├─ Secret Manager (4 secrets)   \$%.2f\n" "$secret_cost"
     printf "  └─ Network (IAP, minimal)       \$%.2f\n" "$net_cost"
   fi
-  printf "  ${DIM}Subtotal infra                 ≈ \$%.0f/mo${NC}\n" "$infra_total"
+  printf '  %bSubtotal infra                 ≈ $%.0f/mo%b\n' "$DIM" "$infra_total" "$NC"
   echo ""
 
-  printf "  ${BOLD}LLM APIs (~%d msgs/day)${NC}\n" "$daily_msgs"
-  printf "  ├─ %-30s  ≈ \$%.0f\n" "$(echo "$primary_model" | sed 's|.*/||') (main agent)" "$agent_cost"
+  printf '  %bLLM APIs (~%d msgs/day)%b\n' "$BOLD" "$daily_msgs" "$NC"
+  printf "  ├─ %-30s  ≈ \$%.0f\n" "${primary_model##*/} (main agent)" "$agent_cost"
   if [ "$mem0_enabled" = "true" ]; then
     printf "  ├─ Haiku 4.5 (Mem0 extraction)  ≈ \$%.0f\n" "$mem0_cost"
     printf "  ├─ OpenAI embeddings (Mem0)      ≈ \$%.2f\n" "$embed_cost"
   else
-    printf "  ${DIM}├─ Mem0 (disabled)               \$0${NC}\n"
+    printf '  %b├─ Mem0 (disabled)               $0%b\n' "$DIM" "$NC"
   fi
   if [ "$audio_enabled" = "true" ]; then
     printf "  └─ Mistral Voxtral (audio)       ≈ \$%.0f\n" "$audio_cost"
   else
-    printf "  ${DIM}└─ Audio (disabled)              \$0${NC}\n"
+    printf '  %b└─ Audio (disabled)              $0%b\n' "$DIM" "$NC"
   fi
-  printf "  ${DIM}Subtotal LLM                   ≈ \$%.0f/mo${NC}\n" "$llm_total"
+  printf '  %bSubtotal LLM                   ≈ $%.0f/mo%b\n' "$DIM" "$llm_total" "$NC"
   echo ""
   echo "  ─────────────────────────────────────────"
-  printf "  ${BOLD}TOTAL ESTIMATED                 ≈ \$%.0f/mo${NC}\n" "$total"
+  printf '  %bTOTAL ESTIMATED                 ≈ $%.0f/mo%b\n' "$BOLD" "$total" "$NC"
   echo "  ─────────────────────────────────────────"
   echo ""
-  printf "  ${DIM}With 1-year VM commitment:      ≈ \$%.0f/mo${NC}\n" "$total_1y"
+  printf '  %bWith 1-year VM commitment:      ≈ $%.0f/mo%b\n' "$DIM" "$total_1y" "$NC"
   echo -e "  ${DIM}GCP free trial (\$300 credit):   ~12 months free${NC}"
   echo ""
   echo -e "  ${DIM}These are estimates. Actual costs depend on usage.${NC}"

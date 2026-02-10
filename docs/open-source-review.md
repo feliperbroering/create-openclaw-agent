@@ -9,7 +9,7 @@ Análise do plano e código existente com foco em boas práticas de repositório
 ### Segurança
 - **Secret Manager**: Zero plaintext em disco (tmpfs) — excelente
 - **.gitignore robusto**: 80+ padrões, bloqueia tfstate, .env, credentials
-- **CI secrets-check**: Detecta `sk-ant-`, `AKIA` no código
+- **CI secrets-check**: Detecta padrões de API keys no código
 - **VM sem IP externo**: Acesso apenas via IAP tunnel
 - **Least privilege**: Service account com roles mínimos
 

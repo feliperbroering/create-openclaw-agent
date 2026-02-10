@@ -11,7 +11,7 @@ During `setup.sh`, API keys are stored in Google Secret Manager:
 ```bash
 # The setup creates secrets with the configured prefix (default: "openclaw")
 gcloud secrets create openclaw-anthropic-api-key --replication-policy=automatic --labels=app=openclaw
-echo -n "sk-ant-..." | gcloud secrets versions add openclaw-anthropic-api-key --data-file=-
+echo -n "YOUR_API_KEY" | gcloud secrets versions add openclaw-anthropic-api-key --data-file=-
 ```
 
 The VM's service account has `roles/secretmanager.secretAccessor`, allowing it to read secrets at boot time.

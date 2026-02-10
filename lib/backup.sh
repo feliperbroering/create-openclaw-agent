@@ -107,6 +107,7 @@ restore_from_backup() {
   tar -xzf "$restore_file" -C /tmp
 
   local restore_dir
+  # shellcheck disable=SC2012
   restore_dir=$(ls -d /tmp/openclaw-backup-* 2>/dev/null | head -1)
   if [ -z "$restore_dir" ]; then
     die "No backup directory found after extraction"
