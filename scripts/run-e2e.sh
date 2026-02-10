@@ -21,6 +21,7 @@ ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 INFRA_DIR="$ROOT_DIR/providers/gcp/infra"
 
 # Colors
+# shellcheck disable=SC2034 # Colors reserved for future use
 if [ -t 1 ]; then
   GREEN='\033[0;32m'; RED='\033[0;31m'; YELLOW='\033[1;33m'
   CYAN='\033[0;36m'; BOLD='\033[1m'; DIM='\033[2m'; NC='\033[0m'
@@ -278,9 +279,7 @@ assert "Bucket versioning (Terraform-managed)" "true"
 assert "Bucket uniform access (Terraform-managed)" "true"
 
 # 3.10 OS Login enabled
-OS_LOGIN=$(gcloud compute instances describe "$VM_NAME" --project="$PROJECT_ID" --zone="$ZONE" \
-  --format="value(metadata.items[0].value)" 2>/dev/null || echo "")
-# OS Login might be in any index, search all metadata
+# OS Login might be in any metadata index, search all metadata items
 OS_LOGIN_FOUND=$(gcloud compute instances describe "$VM_NAME" --project="$PROJECT_ID" --zone="$ZONE" \
   --format="json(metadata.items)" 2>/dev/null | grep -c "enable-oslogin" || echo "0")
 assert "OS Login enabled in metadata" "$([ "$OS_LOGIN_FOUND" -gt 0 ] && echo true || echo false)"

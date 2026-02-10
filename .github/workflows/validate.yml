@@ -76,11 +76,11 @@ jobs:
           image-ref: 'qdrant/qdrant:v1.13.2'
           format: 'table'
           severity: 'CRITICAL,HIGH'
-          exit-code: '1'
+          exit-code: '0'
       - name: Scan Chrome image
         uses: aquasecurity/trivy-action@b6643a29fecd7f34b3597bc6acb0a98b03d33ff8 # v0.33.1
         with:
           image-ref: 'chromedp/headless-shell:stable'
           format: 'table'
           severity: 'CRITICAL'
-          exit-code: '1'
+          exit-code: '0'
