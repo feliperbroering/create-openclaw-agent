@@ -94,9 +94,9 @@ resource "google_compute_instance" "openclaw_gw" {
   }
 
   network_interface {
-    network    = var.network
-    subnetwork = var.network
+    network = var.network
     # No external IP — access via IAP tunnel only
+    # Subnetwork inferred automatically for default VPC
   }
 
   service_account {
@@ -106,9 +106,11 @@ resource "google_compute_instance" "openclaw_gw" {
 
   metadata = {
     startup-script = templatefile("${path.module}/startup.sh", {
-      backup_bucket = var.backup_bucket_name
-      timezone      = var.timezone
-      backup_hours  = var.backup_cron_interval_hours
+      backup_bucket    = var.backup_bucket_name
+      timezone         = var.timezone
+      backup_hours     = var.backup_cron_interval_hours
+      secrets_prefix   = var.secrets_prefix
+      backup_retention = var.backup_retention_days
     })
   }
 
@@ -131,6 +133,41 @@ resource "google_compute_instance" "openclaw_gw" {
       metadata["ssh-keys"],
     ]
   }
+}
+
+# -------------------------------------------------------------------
+# Secret Manager — API + IAM
+# -------------------------------------------------------------------
+
+resource "google_project_service" "secretmanager" {
+  service            = "secretmanager.googleapis.com"
+  disable_on_destroy = false
+}
+
+resource "google_project_iam_member" "openclaw_secrets" {
+  project = var.project_id
+  role    = "roles/secretmanager.secretAccessor"
+  member  = "serviceAccount:${google_service_account.openclaw.email}"
+}
+
+# -------------------------------------------------------------------
+# Cloud NAT — Required for VMs without external IP to reach internet
+# (apt-get, docker pull, gcloud storage, etc.)
+# -------------------------------------------------------------------
+
+resource "google_compute_router" "openclaw" {
+  name    = "openclaw-router"
+  region  = var.region
+  network = var.network
+}
+
+resource "google_compute_router_nat" "openclaw" {
+  name                               = "openclaw-nat"
+  router                             = google_compute_router.openclaw.name
+  region                             = var.region
+  nat_ip_allocate_option             = "AUTO_ONLY"
+  source_subnetwork_ip_ranges_to_nat = "ALL_SUBNETWORKS_ALL_IP_RANGES"
+  min_ports_per_vm                   = 64
 }
 
 # -------------------------------------------------------------------

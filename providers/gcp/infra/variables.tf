@@ -29,9 +29,9 @@ variable "zone" {
 }
 
 variable "machine_type" {
-  description = "GCE machine type (e2-small recommended for OpenClaw)"
+  description = "GCE machine type (e2-medium recommended with browser support)"
   type        = string
-  default     = "e2-small"
+  default     = "e2-medium"
 }
 
 variable "disk_size_gb" {
@@ -74,4 +74,10 @@ variable "backup_cron_interval_hours" {
   description = "Hours between automatic backups"
   type        = number
   default     = 6
+}
+
+variable "secrets_prefix" {
+  description = "Prefix for Secret Manager secret names"
+  type        = string
+  default     = "openclaw"
 }

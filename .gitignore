@@ -1,10 +1,13 @@
 # ==============================================================================
-# OpenClaw Self-Hosting Template — .gitignore
+# create-openclaw-agent — .gitignore
 #
 # SECURITY FIRST: This file is designed to prevent ANY secrets, credentials,
 # API keys, tokens, or personal data from being accidentally committed.
 # When in doubt, add it here.
 # ==============================================================================
+
+# Legacy root infra (moved to providers/gcp/infra)
+/infra/
 
 # ------------------------------------------------------------------------------
 # Terraform / OpenTofu State & Secrets
@@ -80,6 +83,10 @@ docker-compose.override.yml
 *.sqlite
 *.db
 **/memory/mem0-*.db
+
+# Agent config with personal data (only .example is safe)
+agent-config.yml
+!agent-config.example.yml
 
 # ------------------------------------------------------------------------------
 # Docker

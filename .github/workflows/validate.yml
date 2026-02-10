@@ -1,0 +1,64 @@
+name: Validate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  shellcheck:
+    name: Shell Script Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install shellcheck
+        run: sudo apt-get install -y shellcheck
+      - name: Lint shell scripts
+        run: |
+          shellcheck -x lib/*.sh
+          shellcheck -x scripts/run-e2e.sh
+          shellcheck -x providers/gcp/provider.sh
+          shellcheck -x providers/gcp/scripts/restore.sh
+          shellcheck -x setup.sh
+          shellcheck -x install.sh
+
+  terraform:
+    name: Terraform Validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup OpenTofu
+        uses: opentofu/setup-opentofu@v1
+      - name: Validate GCP provider
+        working-directory: providers/gcp/infra
+        run: |
+          tofu init -backend=false
+          tofu validate
+          tofu fmt -check
+
+  yaml-lint:
+    name: YAML Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install yamllint
+        run: pip install yamllint
+      - name: Lint YAML templates
+        run: |
+          yamllint -d relaxed templates/agent-config.example.yml
+          yamllint -d relaxed templates/docker-compose.override.example.yml
+
+  secrets-check:
+    name: Secret Detection
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check for secrets in code
+        run: |
+          # Check for common secret patterns
+          if grep -rE 'sk-ant-|sk-proj-|AKIA[A-Z0-9]{16}' --include='*.sh' --include='*.tf' --include='*.yml' --include='*.yaml' --include='*.md' .; then
+            echo "ERROR: Possible secrets found in code!"
+            exit 1
+          fi
+          echo "No secrets detected"
