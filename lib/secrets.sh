@@ -78,6 +78,26 @@ collect_and_store_secrets() {
   store_secret "gateway-token" "$gw_token"
   ok "gateway-token"
 
+  # Generate age encryption keypair for backup encryption
+  local age_keypair age_private_key age_public_key
+  if command -v age-keygen &>/dev/null; then
+    age_keypair=$(age-keygen 2>&1)
+    age_private_key=$(echo "$age_keypair" | grep -v "^#")
+    age_public_key=$(echo "$age_keypair" | grep "^# public key:" | sed 's/^# public key: //')
+  else
+    # age-keygen not available locally — keypair will be generated on the VM
+    age_private_key=""
+    age_public_key=""
+    warn "age-keygen not found locally — keypair will be generated on the VM"
+  fi
+
+  if [ -n "$age_private_key" ]; then
+    store_secret "age-private-key" "$age_private_key"
+    ok "age-private-key"
+    store_secret "age-public-key" "$age_public_key"
+    ok "age-public-key"
+  fi
+
   ok "All secrets stored"
 }
 
@@ -158,6 +178,14 @@ validate_secrets() {
 
   if [ "$all_ok" = false ]; then
     die "Required secrets missing. Run setup again to store them."
+  fi
+
+  # Optional: check for age encryption keys (warn but don't fail)
+  local age_full_name="${SECRETS_PREFIX:-openclaw}-age-public-key"
+  if provider_get_secret "$age_full_name" &>/dev/null; then
+    ok "${age_full_name} (backup encryption)"
+  else
+    warn "${age_full_name} — not found (backups will not be encrypted)"
   fi
 
   ok "All required secrets present"

@@ -27,10 +27,19 @@ if [ $# -lt 1 ]; then
   exit 1
 fi
 
+# Security: cleanup sensitive temp files on exit (normal or error)
+cleanup_restore() {
+  rm -f /tmp/openclaw-age-restore.key 2>/dev/null
+  rm -f /tmp/openclaw-restore.tar.gz /tmp/openclaw-restore.tar.gz.age 2>/dev/null
+  rm -rf /tmp/openclaw-backup-* 2>/dev/null
+}
+trap cleanup_restore EXIT
+
 echo "=== Pre-flight checks ==="
 
 command -v gcloud >/dev/null 2>&1 || { echo "ERROR: gcloud CLI not found. Install: https://cloud.google.com/sdk/docs/install"; exit 1; }
 command -v docker >/dev/null 2>&1 || { echo "ERROR: Docker not found. Install: apt-get install docker.io docker-compose-plugin"; exit 1; }
+command -v age >/dev/null 2>&1 || echo "WARN: age not found. Encrypted backups cannot be decrypted. Install: https://github.com/FiloSottile/age"
 
 if ! gcloud auth list --filter="status:ACTIVE" --format="value(account)" 2>/dev/null | grep -q "@"; then
   echo "ERROR: Not authenticated with gcloud. Run: gcloud auth login"
@@ -45,10 +54,9 @@ echo ""
 # ---------------------------------------------------------------------------
 BUCKET="gs://$1"
 BACKUP_NAME="${2:-openclaw-latest.tar.gz}"
-BACKUP_URL="$BUCKET/backups/$BACKUP_NAME"
-RESTORE_FILE="/tmp/openclaw-restore.tar.gz"
 OPENCLAW_DIR="$HOME/.openclaw"
 OPENCLAW_REPO="$HOME/openclaw"
+SECRETS_PREFIX="${SECRETS_PREFIX:-openclaw}"
 
 echo "=== OpenClaw Restore ==="
 echo "Bucket:  $BUCKET"
@@ -57,10 +65,49 @@ echo "Target:  $OPENCLAW_DIR"
 echo ""
 
 # ---------------------------------------------------------------------------
-# Download
+# Download (try encrypted first, fall back to unencrypted)
 # ---------------------------------------------------------------------------
 echo "[1/5] Downloading backup..."
-gcloud storage cp "$BACKUP_URL" "$RESTORE_FILE" --quiet
+RESTORE_FILE=""
+if [[ "$BACKUP_NAME" == *.age ]]; then
+  # Explicitly requested encrypted backup
+  RESTORE_FILE="/tmp/openclaw-restore.tar.gz.age"
+  gcloud storage cp "$BUCKET/backups/$BACKUP_NAME" "$RESTORE_FILE" --quiet
+elif gcloud storage cp "$BUCKET/backups/${BACKUP_NAME}.age" "/tmp/openclaw-restore.tar.gz.age" --quiet 2>/dev/null; then
+  # Found encrypted version
+  RESTORE_FILE="/tmp/openclaw-restore.tar.gz.age"
+  echo "  Found encrypted backup: ${BACKUP_NAME}.age"
+else
+  # Fall back to unencrypted
+  RESTORE_FILE="/tmp/openclaw-restore.tar.gz"
+  gcloud storage cp "$BUCKET/backups/$BACKUP_NAME" "$RESTORE_FILE" --quiet
+fi
+
+# ---------------------------------------------------------------------------
+# Decrypt (if encrypted)
+# ---------------------------------------------------------------------------
+if [[ "$RESTORE_FILE" == *.age ]]; then
+  echo "  Decrypting backup..."
+  if command -v age &>/dev/null; then
+    AGE_PRIVATE_KEY_FILE="/tmp/openclaw-age-restore.key"
+    (umask 077; gcloud secrets versions access latest --secret="${SECRETS_PREFIX}-age-private-key" 2>/dev/null > "$AGE_PRIVATE_KEY_FILE") || true
+    chmod 600 "$AGE_PRIVATE_KEY_FILE" 2>/dev/null || true
+    if [ -s "$AGE_PRIVATE_KEY_FILE" ]; then
+      age -d -i "$AGE_PRIVATE_KEY_FILE" -o "${RESTORE_FILE%.age}" "$RESTORE_FILE"
+      rm -f "$RESTORE_FILE" "$AGE_PRIVATE_KEY_FILE"
+      RESTORE_FILE="${RESTORE_FILE%.age}"
+      echo "  ✓ Backup decrypted"
+    else
+      rm -f "$AGE_PRIVATE_KEY_FILE"
+      echo "ERROR: age private key not found in Secret Manager (${SECRETS_PREFIX}-age-private-key)"
+      exit 1
+    fi
+  else
+    echo "ERROR: age tool not installed — cannot decrypt backup"
+    echo "Install: https://github.com/FiloSottile/age"
+    exit 1
+  fi
+fi
 
 # ---------------------------------------------------------------------------
 # Extract
@@ -80,7 +127,8 @@ fi
 echo "[3/5] Restoring config, credentials, and data..."
 mkdir -p "$OPENCLAW_DIR" "$OPENCLAW_REPO"
 
-# Restore all data directories
+# Restore all data directories — canonical list defined in lib/backup.sh (BACKUP_DATA_DIRS)
+# SYNC: keep in sync with startup.sh (sections 6+7) and lib/backup.sh
 for dir in credentials identity agents memory extensions devices cron canvas completions media subagents; do
   if [ -d "$RESTORE_DIR/$dir" ]; then
     cp -r "$RESTORE_DIR/$dir" "$OPENCLAW_DIR/"
@@ -140,7 +188,7 @@ rm -rf "$RESTORE_FILE" /tmp/openclaw-backup-*
 # Start
 # ---------------------------------------------------------------------------
 echo "[5/5] Starting OpenClaw..."
-cd "$OPENCLAW_REPO"
+cd "$OPENCLAW_REPO" || { echo "ERROR: $OPENCLAW_REPO not found"; exit 1; }
 docker compose pull --quiet 2>/dev/null || true
 docker compose up -d
 

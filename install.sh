@@ -12,6 +12,9 @@ REPO_URL="https://github.com/feliperbroering/create-openclaw-agent"
 REPO_API="https://api.github.com/repos/feliperbroering/create-openclaw-agent"
 INSTALL_DIR="${HOME}/.create-openclaw-agent"
 
+# Clean up temp files on error
+trap 'rm -f /tmp/coa-release.tar.gz /tmp/coa-sha256 2>/dev/null' EXIT
+
 # Colors
 # shellcheck disable=SC2034 # CYAN reserved for future use
 if [ -t 1 ]; then
@@ -49,9 +52,31 @@ download() {
 
     # Verify checksum if available
     if curl -fsSL "$checksum_url" -o /tmp/coa-sha256 2>/dev/null; then
-      if command -v sha256sum &>/dev/null; then
-        (cd /tmp && sha256sum -c coa-sha256 2>/dev/null) || echo -e "${DIM}  Checksum verification skipped${NC}"
+      local checksum_ok=false
+      # Extract the expected hash from SHA256SUMS (file names won't match our temp filename)
+      local expected_hash
+      expected_hash=$(grep '\.tar\.gz' /tmp/coa-sha256 | head -1 | awk '{print $1}')
+      if [ -z "$expected_hash" ]; then
+        echo "WARN: Could not parse SHA256SUMS file — skipping verification" >&2
+        checksum_ok=true
+      elif command -v sha256sum &>/dev/null; then
+        local actual_hash
+        actual_hash=$(sha256sum /tmp/coa-release.tar.gz | awk '{print $1}')
+        [ "$actual_hash" = "$expected_hash" ] && checksum_ok=true
+      elif command -v shasum &>/dev/null; then
+        local actual_hash
+        actual_hash=$(shasum -a 256 /tmp/coa-release.tar.gz | awk '{print $1}')
+        [ "$actual_hash" = "$expected_hash" ] && checksum_ok=true
+      else
+        echo "WARN: Neither sha256sum nor shasum found — cannot verify checksum" >&2
+        checksum_ok=true  # Skip verification if no tool available
       fi
+      if [ "$checksum_ok" != "true" ]; then
+        rm -f /tmp/coa-sha256 /tmp/coa-release.tar.gz
+        echo "ERROR: Checksum verification FAILED — download may be tampered with."
+        exit 1
+      fi
+      echo -e "${GREEN}  ✓ Checksum verified${NC}"
       rm -f /tmp/coa-sha256
     fi
 

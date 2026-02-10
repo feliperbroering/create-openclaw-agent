@@ -134,7 +134,8 @@ configure_browser() {
     docker exec "$container" openclaw config set browser.enabled true 2>/dev/null || true
     docker exec "$container" openclaw config set browser.attachOnly true 2>/dev/null || true
     docker exec "$container" openclaw config set browser.defaultProfile openclaw 2>/dev/null || true
-    docker exec "$container" openclaw config set 'browser.profiles.openclaw.cdpUrl' 'http://127.0.0.1:9222' 2>/dev/null || true
+    # Use 'chrome' hostname (Docker service name on the bridge network), not 127.0.0.1
+    docker exec "$container" openclaw config set 'browser.profiles.openclaw.cdpUrl' 'http://chrome:9222' 2>/dev/null || true
     docker exec "$container" openclaw config set 'browser.profiles.openclaw.color' '#FF4500' 2>/dev/null || true
 
     # Install Playwright deps

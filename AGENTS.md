@@ -31,9 +31,15 @@ CLI tool for deploying self-hosted OpenClaw AI agents on cloud infrastructure. S
 │   └── agent-config.example.yml             # Portable agent config template
 ├── docs/
 │   ├── gcp-guide.md              # Secret Manager, IAM, IAP, troubleshooting
-│   └── mem0-setup.md             # Mem0 plugin setup guide
+│   ├── mem0-setup.md             # Mem0 plugin setup guide
+│   └── security.md               # Full security architecture document
 ├── .github/workflows/
 │   └── validate.yml              # CI: shellcheck, tofu validate, smoke tests
+├── scripts/
+│   ├── run-e2e.sh                # E2E test runner (env-based API keys)
+│   └── verify-e2e-cleanup.sh     # Post-E2E resource cleanup verification
+├── .gitleaks.toml                # Gitleaks secret scanning config
+├── .pre-commit-config.yaml       # Pre-commit hooks (gitleaks, shellcheck, tofu)
 ├── .gitignore
 ├── CLAUDE.md                     # Same as AGENTS.md
 ├── AGENTS.md                     # This file
@@ -45,14 +51,28 @@ CLI tool for deploying self-hosted OpenClaw AI agents on cloud infrastructure. S
 
 - **Cloud-agnostic**: Provider interface in `providers/<cloud>/provider.sh`. GCP first; community adds AWS/Azure by implementing the same functions.
 - **No external IP**: VM accessible only via IAP tunnel (GCP) or equivalent.
-- **3 containers**: OpenClaw gateway + Qdrant vector store + Chrome headless (CDP). Total resource needs: 2.5 CPU, 3GB RAM. Requires e2-medium or larger.
+- **3 containers on bridge network**: OpenClaw gateway + Qdrant vector store + Chrome headless (CDP) on an isolated Docker bridge network (`openclaw-net`). Gateway ports bound to `127.0.0.1` only. Read-only root filesystems (`read_only: true`), all Linux capabilities dropped (`cap_drop: ALL`), `no-new-privileges`. Total resource needs: 2.5 CPU, 3GB RAM. Requires e2-medium or larger.
 - **Secrets in Secret Manager**: Zero plaintext on disk. Startup script fetches secrets into tmpfs (`/run/openclaw-secrets/`). Symlinked as `.env` for Docker Compose.
 - **agent-config.yml**: Portable personal config (no secrets). Single source of truth for infrastructure, LLMs, plugins, channels. Generates `terraform.tfvars` and Docker config.
 - **Mem0 memory**: Qdrant vector store running as Docker sidecar. Data at `~/.openclaw/memory/qdrant/`. LLM extraction via Anthropic Haiku.
-- **Auto-restore on fresh VM**: Startup script checks if `~/.openclaw/openclaw.json` exists; if not, downloads and restores from latest GCS backup.
+- **Egress firewall**: Outbound traffic restricted to ports 80, 443, and 53 only. All other egress denied. Cloud NAT provides outbound connectivity (no external IP).
+- **Backup encryption**: Backups encrypted client-side with [age](https://age-encryption.org/) before upload to GCS. Encryption key stored in Secret Manager.
+- **Auto-restore on fresh VM**: Startup script checks if `~/.openclaw/openclaw.json` exists; if not, downloads and restores from latest GCS backup. Handles both encrypted and unencrypted backups.
 - **File ownership**: Container runs as UID 1000 (`node` user). Host files chown'd to 1000:1000.
 
 ## Security — CRITICAL Rules
+
+Full security architecture documented in `docs/security.md`.
+
+### Defense layers
+
+1. **Secrets**: Secret Manager → tmpfs at boot → `.env` symlink. Zero plaintext on persistent disk.
+2. **Network**: No external IP. IAP-only SSH. Egress firewall allows only ports 80/443/53.
+3. **Containers**: Bridge network, `read_only: true`, `cap_drop: ALL`, `no-new-privileges`, resource limits, images pinned by SHA256 digest.
+4. **Infrastructure**: Shielded VM + Secure Boot, OS Login (IAM-based SSH), least-privilege service account, `unattended-upgrades`.
+5. **Backups**: Client-side `age` encryption before GCS upload. Key in Secret Manager. Bucket versioning enabled.
+6. **Supply chain**: GitHub Actions SHA-pinned, Docker images digest-pinned, gitleaks + Trivy in CI, `install.sh` checksum verification with hard-fail.
+7. **Pre-commit hooks**: gitleaks (secrets), shellcheck (shell bugs), terraform-fmt, terraform-validate. Install: `pip install pre-commit && pre-commit install`.
 
 ### NEVER commit secrets
 
@@ -92,11 +112,11 @@ git diff --cached | grep -iE 'sk-|api.key|secret|token.*=.*[a-z0-9]{20}'
 All values come from `agent-config.yml` via `config_generate_tfvars()` in `lib/config.sh`. Users never edit `.tfvars` directly.
 
 Required: `project_id`, `backup_bucket_name`.
-Optional with defaults: `region`, `zone`, `machine_type`, `disk_size_gb`, `timezone`, `vm_name`, `network`, `backup_retention_days`, `backup_cron_interval_hours`, `secrets_prefix`.
+Optional with defaults: `region`, `zone`, `machine_type`, `disk_size_gb`, `timezone`, `vm_name`, `service_account_id`, `network`, `backup_retention_days`, `backup_cron_interval_hours`, `secrets_prefix`.
 
 ### startup.sh is a templatefile
 
-Uses Terraform `${}` interpolation for: `${backup_bucket}`, `${timezone}`, `${backup_hours}`, `${secrets_prefix}`. Shell variables use standard `$VAR` syntax (no `$${}` escaping needed since we rewrote it).
+Uses Terraform `${}` interpolation for: `${backup_bucket}`, `${timezone}`, `${backup_hours}`, `${secrets_prefix}`, `${backup_retention}`. Shell variables use `$${VAR}` syntax (Terraform renders `$$` as a literal `$`). Inside single-quoted heredocs (`<< 'EOF'`), plain `$VAR` works because Terraform only interpolates `${...}` patterns.
 
 ## Provider Interface
 
@@ -118,6 +138,8 @@ provider_check_resources()        # Warn if VM too small for containers
 ```
 
 ## Backup Contents
+
+Backups are encrypted with `age` before upload to GCS. The encryption key is stored in Secret Manager. Restore handles both encrypted and unencrypted (legacy) backups.
 
 What the backup script (`openclaw-backup.sh`) saves:
 
@@ -153,6 +175,17 @@ What the backup script (`openclaw-backup.sh`) saves:
 3. Add same `cp -r` in `providers/gcp/scripts/restore.sh`
 4. Add same in `lib/backup.sh` `restore_from_backup()` function
 5. Update backup table in README.md
+
+### Modifying Docker Compose security
+
+When adding containers to `docker-compose.override.example.yml`, always include:
+- `networks: [openclaw-net]` (bridge network, not host)
+- `read_only: true` + `tmpfs` for writable paths
+- `cap_drop: [ALL]` (add back only what's strictly required)
+- `security_opt: [no-new-privileges:true]`
+- `deploy.resources.limits` (CPU + memory)
+- Image pinned by version + SHA256 digest
+- Health check with interval/timeout/retries
 
 ### Modifying .gitignore
 
