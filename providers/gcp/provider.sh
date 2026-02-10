@@ -159,7 +159,7 @@ provider_provision_infra() {
 
   step "Provisioning infrastructure..."
 
-  cd "$infra_dir"
+  cd "$infra_dir" || exit
 
   info "  Initializing Terraform..."
   tf init -backend-config="bucket=${GCP_BUCKET_NAME}" -input=false -no-color 2>&1 | tail -1
@@ -188,7 +188,7 @@ provider_destroy_infra() {
   local infra_dir="$1"
   local tfvars_file="$2"
 
-  cd "$infra_dir"
+  cd "$infra_dir" || exit
   tf destroy -var-file="$tfvars_file" -input=false -auto-approve
 }
 
